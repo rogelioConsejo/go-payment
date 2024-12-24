@@ -6,7 +6,18 @@ import (
 	"testing"
 )
 
+func TestNewPaymentPerformer(t *testing.T) {
+	t.Parallel()
+	t.Run("It should return a Performer", func(t *testing.T) {
+		per := NewPaymentPerformer(nil)
+		if per == nil {
+			t.Errorf("Expected Performer, got nil")
+		}
+	})
+}
+
 func TestPerformer_AddPaymentMethod(t *testing.T) {
+	t.Parallel()
 	per := getSpyPerformerPersistence()
 	var paymentPerformer Performer = NewPaymentPerformer(per)
 	if paymentPerformer == nil {
@@ -61,11 +72,9 @@ func TestPerformer_AddPaymentMethod(t *testing.T) {
 }
 
 func TestPerformer_Initiate(t *testing.T) {
+	t.Parallel()
 	spyPersistence := getSpyPerformerPersistence()
 	var per Performer = NewPaymentPerformer(spyPersistence)
-	if per == nil {
-		t.Fatalf("Expected Performer, got nil")
-	}
 
 	m := getSpyMethod()
 	_ = per.AddPaymentMethod("paypal", m)
@@ -176,13 +185,67 @@ func TestPerformer_Initiate(t *testing.T) {
 }
 
 func TestPerformer_Confirm(t *testing.T) {
+	t.Parallel()
+	spyPersistence := getSpyPerformerPersistence()
+	var per Performer = NewPaymentPerformer(spyPersistence)
+
+	m := getSpyMethod()
+	_ = per.AddPaymentMethod("paypal", m)
+
+	t.Run("It should use the payment method to capture the payment", func(t *testing.T) {
+		pay := New("paypal")
+		id, _ := per.Initiate(pay)
+		if !m.wasCreated(id) {
+			t.Fatalf("Expected payment to be initiated, got not initiated")
+		}
+		_ = per.Confirm(id)
+		if !m.wasCaptured(id) {
+			t.Errorf("Expected payment to be captured, got not captured")
+		}
+	})
+	t.Run("It should return an error if the payment ID is empty", func(t *testing.T) {
+		err := per.Confirm("")
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, EmptyPaymentIDError) {
+			t.Errorf("Expected error to be %v, got %v", EmptyPaymentIDError, err)
+		}
+	})
+	t.Run("It should return an error if the payment ID is not found", func(t *testing.T) {
+		err := per.Confirm("not-found")
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, NotFoundError) {
+			t.Errorf("Expected error to be %v, got %v", NotFoundError, err)
+		}
+	})
+	t.Run("It should return an error if the payment method returns an error", func(t *testing.T) {
+		m.failAllCaptures(true)
+		pay := New("paypal")
+		id, _ := per.Initiate(pay)
+		if !m.wasCreated(id) {
+			t.Fatalf("Expected payment to be initiated, got not initiated")
+		}
+		err := per.Confirm(id)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, CaptureError) {
+			t.Errorf("Expected error to be %v, got %v", CaptureError, err)
+		}
+		m.failAllCaptures(false)
+	})
 }
 
 type spyMethod struct {
-	validations    map[MethodName]int
-	rejectPayments bool
-	payments       map[string]Payment
-	failPayments   bool
+	validations       map[MethodName]int
+	rejectPayments    bool
+	initiatedPayments map[string]Payment
+	capturedPayments  map[string]Payment
+	failPayments      bool
+	failCaptures      bool
 }
 
 func (m *spyMethod) Validate(pay Payment) error {
@@ -198,8 +261,16 @@ func (m *spyMethod) Create(pay Payment) (string, error) {
 		return "", errors.New("payment failed")
 	}
 	id := uuid.NewString()
-	m.payments[id] = pay
+	m.initiatedPayments[id] = pay
 	return id, nil
+}
+
+func (m *spyMethod) Capture(id string) error {
+	if m.failCaptures {
+		return errors.New("capture failed")
+	}
+	m.capturedPayments[id] = m.initiatedPayments[id]
+	return nil
 }
 
 func (m *spyMethod) wasValidated(pay Payment) bool {
@@ -215,7 +286,7 @@ func (m *spyMethod) rejectAllPayments(b bool) {
 }
 
 func (m *spyMethod) wasCreated(id string) bool {
-	_, ok := m.payments[id]
+	_, ok := m.initiatedPayments[id]
 	return ok
 }
 
@@ -223,10 +294,20 @@ func (m *spyMethod) failAllPayments(b bool) {
 	m.failPayments = b
 }
 
+func (m *spyMethod) failAllCaptures(b bool) {
+	m.failCaptures = b
+}
+
+func (m *spyMethod) wasCaptured(id string) bool {
+	_, ok := m.capturedPayments[id]
+	return ok
+}
+
 func getSpyMethod() *spyMethod {
 	return &spyMethod{
-		validations: make(map[MethodName]int),
-		payments:    make(map[string]Payment),
+		validations:       make(map[MethodName]int),
+		initiatedPayments: make(map[string]Payment),
+		capturedPayments:  make(map[string]Payment),
 	}
 }
 
@@ -235,6 +316,14 @@ type spyPerformerPersistence struct {
 	savedPayments           map[string]Payment
 	failOnPaymentSave       bool
 	failOnPaymentMethodSave bool
+}
+
+func (s *spyPerformerPersistence) RetrievePayment(id string) (Payment, error) {
+	payment, ok := s.savedPayments[id]
+	if !ok {
+		return nil, errors.New("payment not found")
+	}
+	return payment, nil
 }
 
 func (s *spyPerformerPersistence) RetrievePaymentMethod(name MethodName) (Method, error) {

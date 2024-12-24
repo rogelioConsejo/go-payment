@@ -3,8 +3,13 @@ package payment
 import "errors"
 
 type Performer interface {
-	AddPaymentMethod(MethodName, Method) error
+	PerformerInitializer
 	Initiate(Payment) (id string, err error)
+	Confirm(paymentId string) error
+}
+
+type PerformerInitializer interface {
+	AddPaymentMethod(MethodName, Method) error
 }
 
 func NewPaymentPerformer(p PerformerPersistence) Performer {
@@ -15,6 +20,7 @@ type PerformerPersistence interface {
 	SavePaymentMethod(MethodName, Method) error
 	RetrievePaymentMethod(MethodName) (Method, error)
 	SavePayment(id string, pay Payment) error
+	RetrievePayment(id string) (Payment, error)
 }
 
 type performer struct {
@@ -65,6 +71,29 @@ func (p performer) Initiate(payment Payment) (id string, err error) {
 	return id, nil
 }
 
+func (p performer) Confirm(paymentId string) error {
+	if paymentId == "" {
+		return EmptyPaymentIDError
+	}
+	if p.PerformerPersistence == nil {
+		return PersistenceNotSetError
+	}
+	pay, err := p.RetrievePayment(paymentId)
+	if err != nil {
+		return NotFoundError
+	}
+	method, err := p.RetrievePaymentMethod(pay.Method())
+	if err != nil {
+		return errors.Join(UnsupportedMethodError, MethodMayHaveBeenRemovedError) // This should never happen because the payment was already validated on creation, but just in case
+	}
+
+	err = method.Capture(paymentId)
+	if err != nil {
+		return errors.Join(CaptureError, err)
+	}
+	return nil
+}
+
 var EmptyMethodError = errors.New("payment MethodName is empty")
 var UnsupportedMethodError = errors.New("payment MethodName is not supported")
 var PersistenceNotSetError = errors.New("persistence is not set")
@@ -72,3 +101,11 @@ var InvalidPaymentError = errors.New("payment is invalid for the selected paymen
 var CreationError = errors.New("payment creation failed")
 var SaveError = errors.New("payment save failed")
 var SaveMethodError = errors.New("payment method save failed")
+var EmptyPaymentIDError = errors.New("payment ID is empty")
+var NotFoundError = errors.New("payment not found")
+var CaptureError = errors.New("payment capture failed")
+
+// MethodMayHaveBeenRemovedError exists in case the payment method was removed after the payment was created and before
+// it was confirmed, which would be a very bad operative practice, but it could lead to a lot of confusion, so
+// it's better to be explicit about it, even if it is unlikely to happen.
+var MethodMayHaveBeenRemovedError = errors.New("payment method may have been removed before payment was confirmed")
