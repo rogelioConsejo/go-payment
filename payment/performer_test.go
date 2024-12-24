@@ -166,7 +166,7 @@ func TestPerformer_Initiate(t *testing.T) {
 	t.Run("It should save the created payment by its ID", func(t *testing.T) {
 		pay := New("paypal")
 		id, _ := per.Initiate(pay)
-		if !spyPersistence.paymentExists(id) {
+		if !spyPersistence.paymentExists(string(id)) {
 			t.Errorf("Expected payment to be saved, got not saved")
 		}
 	})
@@ -237,13 +237,29 @@ func TestPerformer_Confirm(t *testing.T) {
 		}
 		m.failAllCaptures(false)
 	})
+	t.Run("It should save the captured payment", func(t *testing.T) {
+		pay := New("paypal")
+		id, _ := per.Initiate(pay)
+		_ = per.Confirm(id)
+
+		savedPayment, err := spyPersistence.RetrievePayment(string(id))
+		if err != nil {
+			t.Fatalf("could not retrieve payment: %v", err)
+		}
+		if savedPayment == nil {
+			t.Fatalf("Expected payment, got nil")
+		}
+		if savedPayment.Status().String() != Collected {
+			t.Errorf("Expected status to be %s, got %s", Collected, savedPayment.Status().String())
+		}
+	})
 }
 
 type spyMethod struct {
 	validations       map[MethodName]int
 	rejectPayments    bool
-	initiatedPayments map[string]Payment
-	capturedPayments  map[string]Payment
+	initiatedPayments map[ID]Payment
+	capturedPayments  map[ID]Payment
 	failPayments      bool
 	failCaptures      bool
 }
@@ -256,16 +272,16 @@ func (m *spyMethod) Validate(pay Payment) error {
 	return nil
 }
 
-func (m *spyMethod) Create(pay Payment) (string, error) {
+func (m *spyMethod) Create(pay Payment) (ID, error) {
 	if m.failPayments {
 		return "", errors.New("payment failed")
 	}
 	id := uuid.NewString()
-	m.initiatedPayments[id] = pay
-	return id, nil
+	m.initiatedPayments[ID(id)] = pay
+	return ID(id), nil
 }
 
-func (m *spyMethod) Capture(id string) error {
+func (m *spyMethod) Capture(id ID) error {
 	if m.failCaptures {
 		return errors.New("capture failed")
 	}
@@ -285,7 +301,7 @@ func (m *spyMethod) rejectAllPayments(b bool) {
 	m.rejectPayments = b
 }
 
-func (m *spyMethod) wasCreated(id string) bool {
+func (m *spyMethod) wasCreated(id ID) bool {
 	_, ok := m.initiatedPayments[id]
 	return ok
 }
@@ -298,7 +314,7 @@ func (m *spyMethod) failAllCaptures(b bool) {
 	m.failCaptures = b
 }
 
-func (m *spyMethod) wasCaptured(id string) bool {
+func (m *spyMethod) wasCaptured(id ID) bool {
 	_, ok := m.capturedPayments[id]
 	return ok
 }
@@ -306,8 +322,8 @@ func (m *spyMethod) wasCaptured(id string) bool {
 func getSpyMethod() *spyMethod {
 	return &spyMethod{
 		validations:       make(map[MethodName]int),
-		initiatedPayments: make(map[string]Payment),
-		capturedPayments:  make(map[string]Payment),
+		initiatedPayments: make(map[ID]Payment),
+		capturedPayments:  make(map[ID]Payment),
 	}
 }
 

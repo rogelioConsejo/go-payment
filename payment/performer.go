@@ -4,8 +4,8 @@ import "errors"
 
 type Performer interface {
 	PerformerInitializer
-	Initiate(Payment) (id string, err error)
-	Confirm(paymentId string) error
+	Initiate(Payment) (ID, error)
+	Confirm(ID) error
 }
 
 type PerformerInitializer interface {
@@ -20,6 +20,10 @@ type PerformerPersistence interface {
 	SavePaymentMethod(MethodName, Method) error
 	RetrievePaymentMethod(MethodName) (Method, error)
 	SavePayment(id string, pay Payment) error
+	RetrieverPersistence
+}
+
+type RetrieverPersistence interface {
 	RetrievePayment(id string) (Payment, error)
 }
 
@@ -44,7 +48,7 @@ func (p performer) AddPaymentMethod(name MethodName, method Method) error {
 	return nil
 }
 
-func (p performer) Initiate(payment Payment) (id string, err error) {
+func (p performer) Initiate(payment Payment) (id ID, err error) {
 	if payment == nil {
 		return "", IsNilError
 	}
@@ -63,7 +67,7 @@ func (p performer) Initiate(payment Payment) (id string, err error) {
 	if creationError != nil {
 		return "", errors.Join(CreationError, creationError)
 	}
-	saveErr := p.SavePayment(id, payment)
+	saveErr := p.SavePayment(string(id), payment)
 	if saveErr != nil {
 		return "", errors.Join(SaveError, saveErr)
 	}
@@ -71,14 +75,14 @@ func (p performer) Initiate(payment Payment) (id string, err error) {
 	return id, nil
 }
 
-func (p performer) Confirm(paymentId string) error {
-	if paymentId == "" {
+func (p performer) Confirm(id ID) error {
+	if id == "" {
 		return EmptyPaymentIDError
 	}
 	if p.PerformerPersistence == nil {
 		return PersistenceNotSetError
 	}
-	pay, err := p.RetrievePayment(paymentId)
+	pay, err := p.RetrievePayment(string(id))
 	if err != nil {
 		return NotFoundError
 	}
@@ -87,10 +91,17 @@ func (p performer) Confirm(paymentId string) error {
 		return errors.Join(UnsupportedMethodError, MethodMayHaveBeenRemovedError) // This should never happen because the payment was already validated on creation, but just in case
 	}
 
-	err = method.Capture(paymentId)
+	err = method.Capture(id)
 	if err != nil {
 		return errors.Join(CaptureError, err)
 	}
+
+	pay.Status().Collect()
+	err = p.SavePayment(string(id), pay)
+	if err != nil {
+		return errors.Join(SaveError, err)
+	}
+
 	return nil
 }
 
