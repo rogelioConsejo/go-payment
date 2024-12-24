@@ -198,13 +198,13 @@ func TestPerformer_Confirm(t *testing.T) {
 		if !m.wasCreated(id) {
 			t.Fatalf("Expected payment to be initiated, got not initiated")
 		}
-		_ = per.Confirm(id)
+		_ = per.Confirm(id, "1234")
 		if !m.wasCaptured(id) {
 			t.Errorf("Expected payment to be captured, got not captured")
 		}
 	})
 	t.Run("It should return an error if the payment ID is empty", func(t *testing.T) {
-		err := per.Confirm("")
+		err := per.Confirm("", "1234")
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -213,7 +213,7 @@ func TestPerformer_Confirm(t *testing.T) {
 		}
 	})
 	t.Run("It should return an error if the payment ID is not found", func(t *testing.T) {
-		err := per.Confirm("not-found")
+		err := per.Confirm("not-found", "1234")
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -228,7 +228,7 @@ func TestPerformer_Confirm(t *testing.T) {
 		if !m.wasCreated(id) {
 			t.Fatalf("Expected payment to be initiated, got not initiated")
 		}
-		err := per.Confirm(id)
+		err := per.Confirm(id, "1234")
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -240,7 +240,7 @@ func TestPerformer_Confirm(t *testing.T) {
 	t.Run("It should save the captured payment", func(t *testing.T) {
 		pay := New("paypal")
 		id, _ := per.Initiate(pay)
-		_ = per.Confirm(id)
+		_ = per.Confirm(id, "1234")
 
 		savedPayment, err := spyPersistence.RetrievePayment(string(id))
 		if err != nil {
@@ -281,7 +281,7 @@ func (m *spyMethod) Create(pay Payment) (ID, error) {
 	return ID(id), nil
 }
 
-func (m *spyMethod) Capture(id ID) error {
+func (m *spyMethod) Capture(id ID, _ Validation) error {
 	if m.failCaptures {
 		return errors.New("capture failed")
 	}

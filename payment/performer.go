@@ -5,7 +5,7 @@ import "errors"
 type Performer interface {
 	PerformerInitializer
 	Initiate(Payment) (ID, error)
-	Confirm(ID) error
+	Confirm(ID, Validation) error
 }
 
 type PerformerInitializer interface {
@@ -75,7 +75,7 @@ func (p performer) Initiate(payment Payment) (id ID, err error) {
 	return id, nil
 }
 
-func (p performer) Confirm(id ID) error {
+func (p performer) Confirm(id ID, v Validation) error {
 	if id == "" {
 		return EmptyPaymentIDError
 	}
@@ -91,7 +91,7 @@ func (p performer) Confirm(id ID) error {
 		return errors.Join(UnsupportedMethodError, MethodMayHaveBeenRemovedError) // This should never happen because the payment was already validated on creation, but just in case
 	}
 
-	err = method.Capture(id)
+	err = method.Capture(id, v)
 	if err != nil {
 		return errors.Join(CaptureError, err)
 	}
