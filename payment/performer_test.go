@@ -71,16 +71,33 @@ func TestPerformer_Initiate(t *testing.T) {
 	_ = per.AddPaymentMethod("paypal", m)
 
 	t.Run("Initiate payment should return an error if the payment is nil", func(t *testing.T) {
-		testNilPayment(t, per)
-		testNonNilPayment(t, per)
+		_, err := per.Initiate(nil)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, IsNilError) {
+			t.Errorf("Expected error to be %v, got %v", IsNilError, err)
+		}
 	})
 	t.Run("Initiate payment should return an error if the payment has no MethodName", func(t *testing.T) {
-		testPaymentWithoutMethod(t, per)
-		testPaymentWithMethod(t, per)
+		var pay Payment = payment{}
+		_, err := per.Initiate(pay)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, EmptyMethodError) {
+			t.Errorf("Expected error to be %v, got %v", EmptyMethodError, err)
+		}
 	})
 	t.Run("Initiate payment should an error if the payment method is not supported", func(t *testing.T) {
-		testUnsupportedMethod(t, per)
-		testSupportedMethod(t, per)
+		pay := New("unsupported-method")
+		_, err := per.Initiate(pay)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, UnsupportedMethodError) {
+			t.Errorf("Expected error to be %v, got %v", UnsupportedMethodError, err)
+		}
 	})
 	t.Run("It should return a payment ID if the payment is valid", func(t *testing.T) {
 		pay := New("paypal")
@@ -158,6 +175,9 @@ func TestPerformer_Initiate(t *testing.T) {
 	})
 }
 
+func TestPerformer_Confirm(t *testing.T) {
+}
+
 type spyMethod struct {
 	validations    map[MethodName]int
 	rejectPayments bool
@@ -207,69 +227,6 @@ func getSpyMethod() *spyMethod {
 	return &spyMethod{
 		validations: make(map[MethodName]int),
 		payments:    make(map[string]Payment),
-	}
-}
-
-func testSupportedMethod(t *testing.T, per Performer) {
-	t.Helper()
-	pay := New("paypal")
-	_, err := per.Initiate(pay)
-	if err != nil {
-		t.Errorf("Expected nil, got %v", err)
-	}
-}
-
-func testUnsupportedMethod(t *testing.T, per Performer) {
-	t.Helper()
-	pay := New("unsupported-method")
-	_, err := per.Initiate(pay)
-	if err == nil {
-		t.Errorf("Expected error, got nil")
-	}
-	if !errors.Is(err, UnsupportedMethodError) {
-		t.Errorf("Expected error to be %v, got %v", UnsupportedMethodError, err)
-	}
-}
-
-func testPaymentWithMethod(t *testing.T, per Performer) {
-	t.Helper()
-
-	pay := New("paypal")
-	_, err := per.Initiate(pay)
-	if err != nil {
-		t.Errorf("Expected nil, got %v", err)
-	}
-}
-
-func testPaymentWithoutMethod(t *testing.T, per Performer) {
-	t.Helper()
-	var pay Payment = payment{}
-	_, err := per.Initiate(pay)
-	if err == nil {
-		t.Errorf("Expected error, got nil")
-	}
-	if !errors.Is(err, EmptyMethodError) {
-		t.Errorf("Expected error to be %v, got %v", EmptyMethodError, err)
-	}
-}
-
-func testNonNilPayment(t *testing.T, per Performer) {
-	t.Helper()
-	pay := New("paypal")
-	_, err := per.Initiate(pay)
-	if err != nil {
-		t.Errorf("Expected nil, got %v", err)
-	}
-}
-
-func testNilPayment(t *testing.T, per Performer) {
-	t.Helper()
-	_, err := per.Initiate(nil)
-	if err == nil {
-		t.Errorf("Expected error, got nil")
-	}
-	if !errors.Is(err, IsNilError) {
-		t.Errorf("Expected error to be %v, got %v", IsNilError, err)
 	}
 }
 
