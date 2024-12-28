@@ -99,7 +99,7 @@ func TestPerformer_Initiate(t *testing.T) {
 		}
 	})
 	t.Run("Initiate payment should an error if the payment method is not supported", func(t *testing.T) {
-		pay := New("unsupported-method")
+		pay, _ := New("unsupported-method", onCollectStub)
 		_, err := per.Initiate(pay)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
@@ -109,7 +109,7 @@ func TestPerformer_Initiate(t *testing.T) {
 		}
 	})
 	t.Run("It should return a payment ID if the payment is valid", func(t *testing.T) {
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		id, err := per.Initiate(pay)
 		if err != nil {
 			t.Errorf("Expected nil, got %v", err)
@@ -119,7 +119,7 @@ func TestPerformer_Initiate(t *testing.T) {
 		}
 	})
 	t.Run("It should validate the payment using the payment method", func(t *testing.T) {
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		_, _ = per.Initiate(pay)
 		if !m.wasValidated(pay) {
 			t.Errorf("Expected payment to be validated, got not validated")
@@ -127,7 +127,7 @@ func TestPerformer_Initiate(t *testing.T) {
 	})
 	t.Run("It should return an error if the payment is invalid for the method", func(t *testing.T) {
 		m.rejectAllPayments(true)
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		_, err := per.Initiate(pay)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
@@ -138,7 +138,7 @@ func TestPerformer_Initiate(t *testing.T) {
 		m.rejectAllPayments(false)
 	})
 	t.Run("It should initiate the payment via the payment method", func(t *testing.T) {
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		id, err := per.Initiate(pay)
 
 		if err != nil {
@@ -153,7 +153,7 @@ func TestPerformer_Initiate(t *testing.T) {
 	})
 	t.Run("It should return an error if the payment could not be initiated", func(t *testing.T) {
 		m.failAllPayments(true)
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		_, err := per.Initiate(pay)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
@@ -164,7 +164,7 @@ func TestPerformer_Initiate(t *testing.T) {
 		m.failAllPayments(false)
 	})
 	t.Run("It should save the created payment by its ID", func(t *testing.T) {
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		id, _ := per.Initiate(pay)
 		if !spyPersistence.paymentExists(string(id)) {
 			t.Errorf("Expected payment to be saved, got not saved")
@@ -172,7 +172,7 @@ func TestPerformer_Initiate(t *testing.T) {
 	})
 	t.Run("It should return an error if the payment could not be saved", func(t *testing.T) {
 		spyPersistence.failWhenSavingAPayment(true)
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		_, err := per.Initiate(pay)
 		if err == nil {
 			t.Errorf("Expected error, got nil")
@@ -193,7 +193,7 @@ func TestPerformer_Confirm(t *testing.T) {
 	_ = per.AddPaymentMethod("paypal", m)
 
 	t.Run("It should use the payment method to capture the payment", func(t *testing.T) {
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		id, _ := per.Initiate(pay)
 		if !m.wasCreated(id) {
 			t.Fatalf("Expected payment to be initiated, got not initiated")
@@ -223,7 +223,7 @@ func TestPerformer_Confirm(t *testing.T) {
 	})
 	t.Run("It should return an error if the payment method returns an error", func(t *testing.T) {
 		m.failAllCaptures(true)
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		id, _ := per.Initiate(pay)
 		if !m.wasCreated(id) {
 			t.Fatalf("Expected payment to be initiated, got not initiated")
@@ -238,7 +238,7 @@ func TestPerformer_Confirm(t *testing.T) {
 		m.failAllCaptures(false)
 	})
 	t.Run("It should save the captured payment", func(t *testing.T) {
-		pay := New("paypal")
+		pay, _ := New("paypal", onCollectStub)
 		id, _ := per.Initiate(pay)
 		_ = per.Confirm(id, "1234")
 
@@ -251,6 +251,33 @@ func TestPerformer_Confirm(t *testing.T) {
 		}
 		if savedPayment.Status().String() != Collected {
 			t.Errorf("Expected status to be %s, got %s", Collected, savedPayment.Status().String())
+		}
+	})
+	t.Run("It should execute the payment's Fulfill method", func(t *testing.T) {
+		called := false
+		onCollect := func() error {
+			called = true
+			return nil
+		}
+		pay, _ := New("paypal", onCollect)
+		id, _ := per.Initiate(pay)
+		_ = per.Confirm(id, "1234")
+		if !called {
+			t.Errorf("Expected onCollect to be called, got not called")
+		}
+	})
+	t.Run("It should return an error if the payment's Fulfill method returns an error", func(t *testing.T) {
+		onCollect := func() error {
+			return errors.New("onCollect failed")
+		}
+		pay, _ := New("paypal", onCollect)
+		id, _ := per.Initiate(pay)
+		err := per.Confirm(id, "1234")
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, FulfillmentError) {
+			t.Errorf("Expected error to be %v, got %v", FulfillmentError, err)
 		}
 	})
 }
@@ -389,4 +416,8 @@ func getSpyPerformerPersistence() *spyPerformerPersistence {
 		savedMethods:  make(map[MethodName]Method),
 		savedPayments: make(map[string]Payment),
 	}
+}
+
+func onCollectStub() error {
+	return nil
 }

@@ -19,7 +19,8 @@ func TestStatusChecker_CheckPaymentStatus(t *testing.T) {
 		t.Fatalf("could not add payment method: %v", addPaymentErr)
 	}
 
-	id, initiatePaymentErr := perf.Initiate(New("cash"))
+	pay, _ := New("cash", onCollectStub)
+	id, initiatePaymentErr := perf.Initiate(pay)
 	if initiatePaymentErr != nil {
 		t.Fatalf("could not initiate payment: %v", initiatePaymentErr)
 	}
@@ -38,7 +39,7 @@ func TestStatusChecker_CheckPaymentStatus(t *testing.T) {
 	})
 
 	t.Run("The status of a payment should be collected after it is collected", func(t *testing.T) {
-		err := perf.Confirm(id)
+		err := perf.Confirm(id, "valid")
 		if err != nil {
 			t.Fatalf("could not confirm payment: %v", err)
 		}
