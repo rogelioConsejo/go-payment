@@ -96,10 +96,9 @@ func (p performer) Confirm(id ID, v Validation) error {
 		return errors.Join(CaptureError, err)
 	}
 
-	pay.Status().Collect()
 	fulfillmentErr := pay.Fulfill()
 	if fulfillmentErr != nil {
-		return errors.Join(FulfillmentError, fulfillmentErr)
+		return errors.Join(FulfillmentOnConfirmError, fulfillmentErr)
 	}
 	err = p.SavePayment(string(id), pay)
 	if err != nil {
@@ -119,7 +118,7 @@ var SaveMethodError = errors.New("payment method save failed")
 var EmptyPaymentIDError = errors.New("payment ID is empty")
 var NotFoundError = errors.New("payment not found")
 var CaptureError = errors.New("payment capture failed")
-var FulfillmentError = errors.New("payment fulfillment failed")
+var FulfillmentOnConfirmError = errors.New("payment fulfillment failed on confirmation")
 
 // MethodMayHaveBeenRemovedError exists in case the payment method was removed after the payment was created and before
 // it was confirmed, which would be a very bad operative practice, but it could lead to a lot of confusion, so

@@ -4,7 +4,7 @@ import "errors"
 
 type Payment interface {
 	Method() MethodName
-	Status() Status
+	Status() StatusName
 	Fulfill() error
 }
 
@@ -28,17 +28,26 @@ type payment struct {
 	executeAgreement func() error
 }
 
-func (t payment) Fulfill() error {
-	return t.executeAgreement()
+func (p payment) Fulfill() error {
+	statusError := p.status.Collect()
+	if statusError != nil {
+		return errors.Join(CollectionStatusError, statusError)
+	}
+	if err := p.executeAgreement(); err != nil {
+		return errors.Join(ExecuteAgreementError, err)
+	}
+	return nil
 }
 
-func (t payment) Status() Status {
-	return t.status
+func (p payment) Status() StatusName {
+	return StatusName(p.status.String())
 }
 
-func (t payment) Method() MethodName {
-	return t.method
+func (p payment) Method() MethodName {
+	return p.method
 }
 
 var IsNilError = errors.New("payment is nil")
-var onCollectIsNilError = errors.New("onCollect is nil")
+var onCollectIsNilError = errors.New("onCollect callback cannot be nil when creating a new payment")
+var ExecuteAgreementError = errors.New("could not execute agreement")
+var CollectionStatusError = errors.New("could not change payment status to collected")

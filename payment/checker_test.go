@@ -33,8 +33,8 @@ func TestStatusChecker_CheckPaymentStatus(t *testing.T) {
 			t.Fatalf("could not check payment status: %v", err)
 		}
 
-		if st.String() != Pending {
-			t.Errorf("expected status to be %s, got %s", Pending, st.String())
+		if st != Pending {
+			t.Errorf("expected status to be %s, got %s", Pending, st)
 		}
 	})
 
@@ -48,8 +48,8 @@ func TestStatusChecker_CheckPaymentStatus(t *testing.T) {
 			t.Fatalf("could not check payment status: %v", err)
 		}
 
-		if st.String() != Collected {
-			t.Errorf("expected status to be %s, got %s", Collected, st.String())
+		if st != Collected {
+			t.Errorf("expected status to be %s, got %s", Collected, st)
 		}
 	})
 }

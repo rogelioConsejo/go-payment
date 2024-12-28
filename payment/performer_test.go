@@ -249,8 +249,8 @@ func TestPerformer_Confirm(t *testing.T) {
 		if savedPayment == nil {
 			t.Fatalf("Expected payment, got nil")
 		}
-		if savedPayment.Status().String() != Collected {
-			t.Errorf("Expected status to be %s, got %s", Collected, savedPayment.Status().String())
+		if savedPayment.Status() != Collected {
+			t.Errorf("Expected status to be %s, got %s", Collected, savedPayment.Status())
 		}
 	})
 	t.Run("It should execute the payment's Fulfill method", func(t *testing.T) {
@@ -276,8 +276,8 @@ func TestPerformer_Confirm(t *testing.T) {
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
-		if !errors.Is(err, FulfillmentError) {
-			t.Errorf("Expected error to be %v, got %v", FulfillmentError, err)
+		if !errors.Is(err, ExecuteAgreementError) {
+			t.Errorf("Expected error to be %v, got %v", ExecuteAgreementError, err)
 		}
 	})
 }

@@ -1,25 +1,38 @@
 package payment
 
+import "errors"
+
 type Status interface {
 	String() string
-	Collect()
+	Name() StatusName
+	Collect() error
 }
 
+type StatusName string
+
 const (
-	Pending   = "pending"
-	Collected = "collected"
+	Pending   StatusName = "pending"
+	Collected StatusName = "collected"
 )
 
 type status struct {
-	current string
+	current StatusName
 }
 
-func (s *status) Collect() {
+func (s *status) Name() StatusName {
+	return s.current
+}
+
+func (s *status) Collect() error {
+	if s.current == Collected {
+		return AlreadyCollectedError
+	}
 	s.current = Collected
+	return nil
 }
 
 func (s *status) String() string {
-	return s.current
+	return string(s.current)
 }
 
 func NewStatus() Status {
@@ -27,3 +40,5 @@ func NewStatus() Status {
 		current: Pending,
 	}
 }
+
+var AlreadyCollectedError = errors.New("payment has already been collected")

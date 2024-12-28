@@ -9,17 +9,17 @@ func NewStatusChecker(persistence RetrieverPersistence) StatusChecker {
 }
 
 type StatusChecker interface {
-	CheckPaymentStatus(ID) (Status, error)
+	CheckPaymentStatus(ID) (StatusName, error)
 }
 
 type statusChecker struct {
 	RetrieverPersistence
 }
 
-func (s statusChecker) CheckPaymentStatus(id ID) (Status, error) {
+func (s statusChecker) CheckPaymentStatus(id ID) (StatusName, error) {
 	pay, err := s.RetrievePayment(string(id))
 	if err != nil {
-		return nil, errors.Join(CheckPaymentStatusError, err)
+		return "", errors.Join(CheckPaymentStatusError, err)
 	}
 	return pay.Status(), nil
 }

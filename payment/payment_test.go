@@ -14,7 +14,7 @@ func TestNew(t *testing.T) {
 		if p.Method() != "test" {
 			t.Errorf("Method() = %s; want test", p.Method())
 		}
-		if p.Status().String() != Pending {
+		if p.Status() != Pending {
 			t.Errorf("Status() = %s; want %s", p.Status(), Pending)
 		}
 	})
