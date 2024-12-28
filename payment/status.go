@@ -3,8 +3,16 @@ package payment
 import "errors"
 
 type Status interface {
+	StateQueries
+	StateChanges
+}
+
+type StateQueries interface {
 	String() string
 	Name() StatusName
+}
+
+type StateChanges interface {
 	Collected() error
 	Unfulfilled() error
 	Fulfilled() error
@@ -19,32 +27,44 @@ const (
 	Fulfilled   StatusName = "fulfilled"
 )
 
+// maybe we can have structs for each status to make this easier to extend. They would need to implement StateChanges
+// more like a proper state machine. Instead of having the "statusName", we could embed the state. This may also need
+// to be a separate package for the state machine to be more flexible and clean.
 type status struct {
 	current StatusName
 }
 
 func (s *status) Fulfilled() error {
-	if s.current == Pending {
+	switch s.current {
+	case Pending:
 		return NotCollectedError
-	}
-	if s.current == Fulfilled {
+	case Fulfilled:
 		return AlreadyFulfilledError
+	case Unfulfilled:
+		s.current = Fulfilled
+	case Collected:
+		s.current = Fulfilled
+	default:
+		return UnknownStatusError
 	}
-	s.current = Fulfilled
+
 	return nil
 }
 
 func (s *status) Unfulfilled() error {
-	if s.current == Pending {
+	switch s.current {
+	case Pending:
 		return NotCollectedError
-	}
-	if s.current == Fulfilled {
-		return AlreadyFulfilledError
-	}
-	if s.current == Unfulfilled {
+	case Unfulfilled:
 		return AlreadyUnfulfilledError
+	case Fulfilled:
+		return AlreadyFulfilledError
+	case Collected:
+		s.current = Unfulfilled
+	default:
+		return UnknownStatusError
 	}
-	s.current = Unfulfilled
+
 	return nil
 }
 
@@ -53,10 +73,19 @@ func (s *status) Name() StatusName {
 }
 
 func (s *status) Collected() error {
-	if s.current == Collected {
+	switch s.current {
+	case Collected:
 		return AlreadyCollectedError
+	case Fulfilled:
+		return AlreadyFulfilledError
+	case Unfulfilled:
+		return AlreadyUnfulfilledError
+	case Pending:
+		s.current = Collected
+	default:
+		return UnknownStatusError
 	}
-	s.current = Collected
+
 	return nil
 }
 
@@ -73,4 +102,5 @@ func NewStatus() Status {
 var AlreadyCollectedError = errors.New("payment has already been collected")
 var NotCollectedError = errors.New("payment cannot be fulfilled if it has not been collected")
 var AlreadyFulfilledError = errors.New("payment has already been fulfilled")
-var AlreadyUnfulfilledError = errors.New("payment has already been unfulfilled")
+var AlreadyUnfulfilledError = errors.New("payment has already been collected but could not be fulfilled")
+var UnknownStatusError = errors.New("unknown status")
