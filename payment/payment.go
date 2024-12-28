@@ -29,13 +29,21 @@ type payment struct {
 }
 
 func (p payment) Fulfill() error {
-	statusError := p.status.Collect()
+	statusError := p.status.Collected()
 	if statusError != nil {
 		return errors.Join(CollectionStatusError, statusError)
 	}
 	if err := p.executeAgreement(); err != nil {
+		statusChangeError := p.status.Unfulfilled()
+		if statusChangeError != nil {
+			return errors.Join(ExecuteAgreementError, statusChangeError, err)
+		}
 		return errors.Join(ExecuteAgreementError, err)
 	}
+	if err := p.status.Fulfilled(); err != nil {
+		return errors.Join(FulfilledStatusError, err)
+	}
+
 	return nil
 }
 
@@ -51,3 +59,4 @@ var IsNilError = errors.New("payment is nil")
 var onCollectIsNilError = errors.New("onCollect callback cannot be nil when creating a new payment")
 var ExecuteAgreementError = errors.New("could not execute agreement")
 var CollectionStatusError = errors.New("could not change payment status to collected")
+var FulfilledStatusError = errors.New("could not change payment status to fulfilled")

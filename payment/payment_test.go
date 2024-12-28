@@ -45,4 +45,24 @@ func TestPayment_Fulfill(t *testing.T) {
 			t.Error("onCollect was not called")
 		}
 	})
+	t.Run("It should set the status to fulfilled", func(t *testing.T) {
+		onCollect := func() error {
+			return nil
+		}
+		p, _ := New("test", onCollect)
+		_ = p.Fulfill()
+		if p.Status() != Fulfilled {
+			t.Errorf("Status() = %s; want %s", p.Status(), Fulfilled)
+		}
+	})
+	t.Run("It sould set the status to unfulfilled if onCollect fails", func(t *testing.T) {
+		onCollect := func() error {
+			return errors.New("error")
+		}
+		p, _ := New("test", onCollect)
+		_ = p.Fulfill()
+		if p.Status() != Unfulfilled {
+			t.Errorf("Status() = %s; want %s", p.Status(), Unfulfilled)
+		}
+	})
 }

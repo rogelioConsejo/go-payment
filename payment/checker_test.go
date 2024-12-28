@@ -38,7 +38,7 @@ func TestStatusChecker_CheckPaymentStatus(t *testing.T) {
 		}
 	})
 
-	t.Run("The status of a payment should be collected after it is collected", func(t *testing.T) {
+	t.Run("The status of a payment should be fulfilled after it is confirmed", func(t *testing.T) {
 		err := perf.Confirm(id, "valid")
 		if err != nil {
 			t.Fatalf("could not confirm payment: %v", err)
@@ -48,8 +48,8 @@ func TestStatusChecker_CheckPaymentStatus(t *testing.T) {
 			t.Fatalf("could not check payment status: %v", err)
 		}
 
-		if st != Collected {
-			t.Errorf("expected status to be %s, got %s", Collected, st)
+		if st != Fulfilled {
+			t.Errorf("expected status to be %s, got %s", Fulfilled, st)
 		}
 	})
 }

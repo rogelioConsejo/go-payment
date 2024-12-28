@@ -249,7 +249,7 @@ func TestPerformer_Confirm(t *testing.T) {
 		if savedPayment == nil {
 			t.Fatalf("Expected payment, got nil")
 		}
-		if savedPayment.Status() != Collected {
+		if savedPayment.Status() != Fulfilled {
 			t.Errorf("Expected status to be %s, got %s", Collected, savedPayment.Status())
 		}
 	})
