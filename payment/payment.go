@@ -1,10 +1,13 @@
 package payment
 
-import "errors"
+import (
+	"errors"
+	"github.com/rogelioConsejo/go-payment/payment/status"
+)
 
 type Payment interface {
 	Method() MethodName
-	Status() StatusName
+	Status() status.Name
 	Fulfill() error
 }
 
@@ -14,7 +17,7 @@ func New(method string, onCollect func() error) (Payment, error) {
 	}
 	return payment{
 		method:           MethodName(method),
-		status:           NewStatus(),
+		status:           status.New(),
 		executeAgreement: onCollect,
 	}, nil
 }
@@ -24,31 +27,32 @@ type MethodName string
 
 type payment struct {
 	method           MethodName
-	status           Status
+	status           status.Status
 	executeAgreement func() error
 }
 
 func (p payment) Fulfill() error {
-	statusError := p.status.Collected()
+	statusError := p.status.Collect()
 	if statusError != nil {
 		return errors.Join(CollectionStatusError, statusError)
 	}
+
 	if err := p.executeAgreement(); err != nil {
-		statusChangeError := p.status.Unfulfilled()
+		statusChangeError := p.status.Unfulfill()
 		if statusChangeError != nil {
 			return errors.Join(ExecuteAgreementError, statusChangeError, err)
 		}
 		return errors.Join(ExecuteAgreementError, err)
 	}
-	if err := p.status.Fulfilled(); err != nil {
+	if err := p.status.Fulfill(); err != nil {
 		return errors.Join(FulfilledStatusError, err)
 	}
 
 	return nil
 }
 
-func (p payment) Status() StatusName {
-	return StatusName(p.status.String())
+func (p payment) Status() status.Name {
+	return status.Name(p.status.String())
 }
 
 func (p payment) Method() MethodName {

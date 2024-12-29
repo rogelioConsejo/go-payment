@@ -1,6 +1,9 @@
 package payment
 
-import "testing"
+import (
+	"github.com/rogelioConsejo/go-payment/payment/status"
+	"testing"
+)
 
 func TestNewStatusChecker(t *testing.T) {
 	var checker StatusChecker = NewStatusChecker(getSpyPerformerPersistence())
@@ -33,8 +36,8 @@ func TestStatusChecker_CheckPaymentStatus(t *testing.T) {
 			t.Fatalf("could not check payment status: %v", err)
 		}
 
-		if st != Pending {
-			t.Errorf("expected status to be %s, got %s", Pending, st)
+		if st != status.Pending {
+			t.Errorf("expected status to be %s, got %s", status.Pending, st)
 		}
 	})
 
@@ -48,8 +51,8 @@ func TestStatusChecker_CheckPaymentStatus(t *testing.T) {
 			t.Fatalf("could not check payment status: %v", err)
 		}
 
-		if st != Fulfilled {
-			t.Errorf("expected status to be %s, got %s", Fulfilled, st)
+		if st != status.Fulfilled {
+			t.Errorf("expected status to be %s, got %s", status.Fulfilled, st)
 		}
 	})
 }

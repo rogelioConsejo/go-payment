@@ -3,6 +3,7 @@ package payment
 import (
 	"errors"
 	"github.com/google/uuid"
+	"github.com/rogelioConsejo/go-payment/payment/status"
 	"testing"
 )
 
@@ -249,8 +250,8 @@ func TestPerformer_Confirm(t *testing.T) {
 		if savedPayment == nil {
 			t.Fatalf("Expected payment, got nil")
 		}
-		if savedPayment.Status() != Fulfilled {
-			t.Errorf("Expected status to be %s, got %s", Collected, savedPayment.Status())
+		if savedPayment.Status() != status.Fulfilled {
+			t.Errorf("Expected status to be %s, got %s", status.Collected, savedPayment.Status())
 		}
 	})
 	t.Run("It should execute the payment's Fulfill method", func(t *testing.T) {

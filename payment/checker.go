@@ -1,6 +1,9 @@
 package payment
 
-import "errors"
+import (
+	"errors"
+	"github.com/rogelioConsejo/go-payment/payment/status"
+)
 
 func NewStatusChecker(persistence RetrieverPersistence) StatusChecker {
 	return statusChecker{
@@ -9,14 +12,14 @@ func NewStatusChecker(persistence RetrieverPersistence) StatusChecker {
 }
 
 type StatusChecker interface {
-	CheckPaymentStatus(ID) (StatusName, error)
+	CheckPaymentStatus(ID) (status.Name, error)
 }
 
 type statusChecker struct {
 	RetrieverPersistence
 }
 
-func (s statusChecker) CheckPaymentStatus(id ID) (StatusName, error) {
+func (s statusChecker) CheckPaymentStatus(id ID) (status.Name, error) {
 	pay, err := s.RetrievePayment(string(id))
 	if err != nil {
 		return "", errors.Join(CheckPaymentStatusError, err)
