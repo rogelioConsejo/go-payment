@@ -1,6 +1,8 @@
 package payment
 
-import "errors"
+import (
+	"errors"
+)
 
 // Method is the interface that all payment methods must implement.
 type Method interface {

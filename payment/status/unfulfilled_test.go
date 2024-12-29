@@ -30,11 +30,11 @@ func TestUnfulfilled_Unfulfilled(t *testing.T) {
 
 func TestUnfulfilled_Fulfilled(t *testing.T) {
 	u := unfulfilled{}
-	_, err := u.Fulfilled()
+	newState, err := u.Fulfilled()
 	if err != nil {
 		t.Errorf("Expected nil, got %s", err)
 	}
-	if u.Name() != Fulfilled {
+	if newState.Name() != Fulfilled {
 		t.Errorf("Expected Fulfilled, got %s", u.Name())
 	}
 }

@@ -1,6 +1,8 @@
 package payment
 
-import "errors"
+import (
+	"errors"
+)
 
 type Performer interface {
 	PerformerInitializer
