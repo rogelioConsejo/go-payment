@@ -2,6 +2,7 @@ package payment
 
 import (
 	"errors"
+	"github.com/rogelioConsejo/go-payment/payment/status"
 	"testing"
 )
 
@@ -14,8 +15,8 @@ func TestNew(t *testing.T) {
 		if p.Method() != "test" {
 			t.Errorf("Method() = %s; want test", p.Method())
 		}
-		if p.Status() != Pending {
-			t.Errorf("Status() = %s; want %s", p.Status(), Pending)
+		if p.Status() != status.Pending {
+			t.Errorf("Status() = %s; want %s", p.Status(), status.Pending)
 		}
 	})
 	t.Run("It should return an error if onCollect is nil", func(t *testing.T) {
@@ -51,18 +52,29 @@ func TestPayment_Fulfill(t *testing.T) {
 		}
 		p, _ := New("test", onCollect)
 		_ = p.Fulfill()
-		if p.Status() != Fulfilled {
-			t.Errorf("Status() = %s; want %s", p.Status(), Fulfilled)
+		if p.Status() != status.Fulfilled {
+			t.Errorf("Status() = %s; want %s", p.Status(), status.Fulfilled)
 		}
 	})
-	t.Run("It sould set the status to unfulfilled if onCollect fails", func(t *testing.T) {
+	t.Run("It should set the status to unfulfilled if onCollect fails", func(t *testing.T) {
 		onCollect := func() error {
 			return errors.New("error")
 		}
 		p, _ := New("test", onCollect)
 		_ = p.Fulfill()
-		if p.Status() != Unfulfilled {
-			t.Errorf("Status() = %s; want %s", p.Status(), Unfulfilled)
+		if p.Status() != status.Unfulfilled {
+			t.Errorf("Status() = %s; want %s", p.Status(), status.Unfulfilled)
+		}
+	})
+	t.Run("It should return an error if the status is already fulfilled", func(t *testing.T) {
+		onCollect := func() error {
+			return nil
+		}
+		p, _ := New("test", onCollect)
+		_ = p.Fulfill()
+		err := p.Fulfill()
+		if !errors.Is(err, status.AlreadyFulfilledError) {
+			t.Errorf("Fulfill() = %v; want %v", err, status.AlreadyFulfilledError)
 		}
 	})
 }
